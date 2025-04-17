@@ -1,16 +1,25 @@
-{{ config(materialized='incremental') }}
+-- Link model for customer-user relationships
+-- Standardized implementation using Data Vault macros
 
-WITH source_data AS (
-    SELECT
-        {{ dbt_utils.generate_surrogate_key(['so.salesorderid']) }} AS link_salesorders_hashkey,
-        hc.customer_hashkey AS customer_hashkey,
-        hu.user_hashkey AS user_hashkey,
-        CURRENT_TIMESTAMP() AS load_date,
-        'SALES_ORDERS' AS record_source
-    FROM {{ ref('stg_sales_orders') }} so
-    INNER JOIN {{ ref('hub_customers') }} hc ON so.customerid = hc.customerid
-    INNER JOIN {{ ref('hub_users') }} hu ON so.salespersonid = hu.userid
-    WHERE so.salesorderid IS NOT NULL
-)
+{% set source_model_query %}
+SELECT
+    {{ hash_key(['so.salesorderid']) }} as link_key,
+    hc.hub_key as customer_hashkey,
+    hu.hub_key as user_hashkey,
+    CURRENT_TIMESTAMP() AS load_date,
+    'SALES_ORDERS' AS record_source
+FROM {{ ref('stg_sales_orders') }} so
+INNER JOIN {{ ref('hub_customers') }} hc ON so.customerid = hc.business_key
+INNER JOIN {{ ref('hub_users') }} hu ON so.salespersonid = hu.business_key
+WHERE so.salesorderid IS NOT NULL
+{% endset %}
 
-SELECT * FROM source_data
+{{ datavault.create_link_model(
+    source_model=none,
+    link_name='link_customers_users',
+    src_pk='salesorderid',
+    src_fk=['customer_hashkey', 'user_hashkey'],
+    src_ldts="current_timestamp()",
+    src_source="'SALES_ORDERS'",
+    source_model_query=source_model_query
+) }}

@@ -1,32 +1,11 @@
-{{ config(
-    materialized='incremental',
-    unique_key='hash_key',
-    tags=['hub']
+-- Hub model for customers
+-- Standardized implementation using Data Vault macros
+
+{{ datavault.create_hub_model(
+    source_model='stg_customers',
+    hub_name='hub_customers',
+    src_pk='CUSTOMERID',
+    src_nk='CUSTOMERID',
+    src_ldts="current_timestamp()",
+    src_source="'CUSTOMERS'"
 ) }}
-
-with source_data as (
-
-    select
-        trim(CUSTOMERID) as business_key,
-        current_timestamp() as load_date,
-        'CUSTOMERS' as record_source
-
-    from {{ ref('stg_customers') }}
-
-    where CUSTOMERID IS NOT NULL
-      and trim(CUSTOMERID) != ''
-)
-
-select distinct
-    {{ hash_key(['business_key']) }} as hash_key,
-    business_key,
-    load_date,
-    record_source
-
-from source_data
-
-{% if is_incremental() %}
-
-    where hash_key not in (select hash_key from {{ this }})
-
-{% endif %}
