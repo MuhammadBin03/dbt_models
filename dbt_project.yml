@@ -4,9 +4,28 @@ config-version: 2
 
 profile: 'telelink_snowflake'
 
-source-paths: ['models']
+# Paths
+model-paths: ['models']
 macro-paths: ['macros']
+seed-paths: ['seeds']
+test-paths: ['tests']
+analysis-paths: ['analyses']
+docs-paths: ['docs']
 
+# Macro namespace
+macro-paths:
+  - macros
+
+# Packages
+require-dbt-version: ">=1.0.0"
+
+# Variables
+vars:
+  # Data Vault configuration
+  datavault_prefix: true
+  datavault_load_date: "current_timestamp()"
+
+# Model configurations
 models:
   telelink_dbt:
     staging:
@@ -16,12 +35,15 @@ models:
       hubs:
         +schema: silver
         +materialized: incremental
+        +tags: ['hub']
       links:
         +schema: silver
         +materialized: incremental
+        +tags: ['link']
       satellites:
         +schema: silver
         +materialized: incremental
+        +tags: ['satellite']
     sources:
       +schema: bronze
       +materialized: view
